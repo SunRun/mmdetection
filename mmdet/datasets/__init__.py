@@ -8,10 +8,22 @@ from .samplers import DistributedGroupSampler, DistributedSampler, GroupSampler
 from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
+from .facets_dataset import FacetsDataset
 
 __all__ = [
-    'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset',
-    'CityscapesDataset', 'GroupSampler', 'DistributedGroupSampler',
-    'DistributedSampler', 'build_dataloader', 'ConcatDataset', 'RepeatDataset',
-    'WIDERFaceDataset', 'DATASETS', 'build_dataset'
+    "CustomDataset",
+    "XMLDataset",
+    "CocoDataset",
+    "VOCDataset",
+    "CityscapesDataset",
+    "GroupSampler",
+    "DistributedGroupSampler",
+    "DistributedSampler",
+    "build_dataloader",
+    "ConcatDataset",
+    "RepeatDataset",
+    "WIDERFaceDataset",
+    "FacetsDataset",
+    "DATASETS",
+    "build_dataset",
 ]

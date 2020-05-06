@@ -1,7 +1,7 @@
-from mmdet.datasets import CocoDataset
-from mmdet.datasets.registry import DATASETS
+from .coco import CocoDataset
+from .registry import DATASETS
 
 
 @DATASETS.register_module
 class FacetsDataset(CocoDataset):
-    CLASSES = ["facet"]
+    CLASSES = ("facet")

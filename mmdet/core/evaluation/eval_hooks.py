@@ -106,6 +106,7 @@ class DistEvalHook(EvalHook):
                     type(dataloader)
                 )
             )
+
         self.dataloader = dataloader
         self.interval = interval
         self.gpu_collect = gpu_collect

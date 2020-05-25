@@ -35,6 +35,11 @@ class LoadImageFromFile(object):
             mean=np.zeros(num_channels, dtype=np.float32),
             std=np.ones(num_channels, dtype=np.float32),
             to_rgb=False)
+        return results
+
+    def __repr__(self):
+        return '{} (to_float32={}, color_type={})'.format(
+            self.__class__.__name__, self.to_float32, self.color_type)
 
 
 @PIPELINES.register_module

@@ -1,6 +1,7 @@
 from .coco import CocoDataset
 from .registry import DATASETS
 
+import os.path as osp
 from pycocotools.cocoeval import COCOeval
 import logging
 import numpy as np
@@ -59,85 +60,94 @@ class FacetsEval(COCOeval):
             raise Exception("Please run accumulate() first")
 
         stats = np.zeros((12,))
-        stats[0], self.values['AP_all_0.5-0.95'] = _summarize(1)
-        stats[1], self.values['AP_all_0.5'] = _summarize(
+        stats[0], self.values["AP_all_0.5-0.95"] = _summarize(1)
+        stats[1], self.values["AP_all_0.5"] = _summarize(
             1, iouThr=0.5, maxDets=self.params.maxDets[2]
         )
-        stats[2], self.values['AP_all_0.75'] = _summarize(
+        stats[2], self.values["AP_all_0.75"] = _summarize(
             1, iouThr=0.75, maxDets=self.params.maxDets[2]
         )
-        stats[3], self.values['AP_small_0.5-0.95'] = _summarize(
+        stats[3], self.values["AP_small_0.5-0.95"] = _summarize(
             1, areaRng="small", maxDets=self.params.maxDets[2]
         )
-        stats[4], self.values['AP_medium_0.5-0.95'] = _summarize(
+        stats[4], self.values["AP_medium_0.5-0.95"] = _summarize(
             1, areaRng="medium", maxDets=self.params.maxDets[2]
         )
-        stats[5], self.values['AP_large_0.5-0.95'] = _summarize(
+        stats[5], self.values["AP_large_0.5-0.95"] = _summarize(
             1, areaRng="large", maxDets=self.params.maxDets[2]
         )
-        stats[6], self.values['AR_all_0.5-0.95_max1'] = _summarize(0, maxDets=self.params.maxDets[0])
-        stats[7], self.values['AR_all_0.5-0.95_max10'] = _summarize(0, maxDets=self.params.maxDets[1])
-        stats[8], self.values['AR_all_0.5-0.95_max100'] = _summarize(0, maxDets=self.params.maxDets[2])
-        stats[9], self.values['AR_small_0.5-0.95'] = _summarize(
+        stats[6], self.values["AR_all_0.5-0.95_max1"] = _summarize(
+            0, maxDets=self.params.maxDets[0]
+        )
+        stats[7], self.values["AR_all_0.5-0.95_max10"] = _summarize(
+            0, maxDets=self.params.maxDets[1]
+        )
+        stats[8], self.values["AR_all_0.5-0.95_max100"] = _summarize(
+            0, maxDets=self.params.maxDets[2]
+        )
+        stats[9], self.values["AR_small_0.5-0.95"] = _summarize(
             0, areaRng="small", maxDets=self.params.maxDets[2]
         )
-        stats[10], self.values['AR_medium_0.5-0.95'] = _summarize(
+        stats[10], self.values["AR_medium_0.5-0.95"] = _summarize(
             0, areaRng="medium", maxDets=self.params.maxDets[2]
         )
-        stats[11], self.values['AR_large_0.5-0.95'] = _summarize(
+        stats[11], self.values["AR_large_0.5-0.95"] = _summarize(
             0, areaRng="large", maxDets=self.params.maxDets[2]
         )
 
         self.stats = stats
 
     def evaluate(self):
-        '''
+        """
         Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
         :return: None
-        '''
+        """
         tic = time.time()
         # print('Running per image evaluation...')
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
-            p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
+            p.iouType = "segm" if p.useSegm == 1 else "bbox"
             # print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
         # print('Evaluate annotation type *{}*'.format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
         p.maxDets = sorted(p.maxDets)
-        self.params=p
+        self.params = p
 
         self._prepare()
         # loop through images, area range, max detection number
         catIds = p.catIds if p.useCats else [-1]
 
-        if p.iouType == 'segm' or p.iouType == 'bbox':
+        if p.iouType == "segm" or p.iouType == "bbox":
             computeIoU = self.computeIoU
-        elif p.iouType == 'keypoints':
+        elif p.iouType == "keypoints":
             computeIoU = self.computeOks
-        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
-                        for imgId in p.imgIds
-                        for catId in catIds}
+        self.ious = {
+            (imgId, catId): computeIoU(imgId, catId)
+            for imgId in p.imgIds
+            for catId in catIds
+        }
 
         evaluateImg = self.evaluateImg
         maxDet = p.maxDets[-1]
-        self.evalImgs = [evaluateImg(imgId, catId, areaRng, maxDet)
-                 for catId in catIds
-                 for areaRng in p.areaRng
-                 for imgId in p.imgIds
-             ]
+        self.evalImgs = [
+            evaluateImg(imgId, catId, areaRng, maxDet)
+            for catId in catIds
+            for areaRng in p.areaRng
+            for imgId in p.imgIds
+        ]
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
         # print('DONE (t={:0.2f}s).'.format(toc-tic))
 
     def accumulate(self, p=None):
-        '''
+        """
         Accumulate per image evaluation results and store the result in self.eval
         :param p: input params for evaluation
         :return: None
-        '''
+        """
         # print('Accumulating evaluation results...')
         tic = time.time()
         if not self.evalImgs:
@@ -152,7 +162,9 @@ class FacetsEval(COCOeval):
         K = len(p.catIds) if p.useCats else 1
         A = len(p.areaRng)
         M = len(p.maxDets)
-        precision = -np.ones((T, R, K, A, M))  # -1 for the precision of absent categories
+        precision = -np.ones(
+            (T, R, K, A, M)
+        )  # -1 for the precision of absent categories
         recall = -np.ones((T, K, A, M))
         scores = -np.ones((T, R, K, A, M))
 
@@ -166,7 +178,9 @@ class FacetsEval(COCOeval):
         # get inds to evaluate
         k_list = [n for n, k in enumerate(p.catIds) if k in setK]
         m_list = [m for n, m in enumerate(p.maxDets) if m in setM]
-        a_list = [n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA]
+        a_list = [
+            n for n, a in enumerate(map(lambda x: tuple(x), p.areaRng)) if a in setA
+        ]
         i_list = [n for n, i in enumerate(p.imgIds) if i in setI]
         I0 = len(_pe.imgIds)
         A0 = len(_pe.areaRng)
@@ -180,16 +194,20 @@ class FacetsEval(COCOeval):
                     E = [e for e in E if not e is None]
                     if len(E) == 0:
                         continue
-                    dtScores = np.concatenate([e['dtScores'][0:maxDet] for e in E])
+                    dtScores = np.concatenate([e["dtScores"][0:maxDet] for e in E])
 
                     # different sorting method generates slightly different results.
                     # mergesort is used to be consistent as Matlab implementation.
-                    inds = np.argsort(-dtScores, kind='mergesort')
+                    inds = np.argsort(-dtScores, kind="mergesort")
                     dtScoresSorted = dtScores[inds]
 
-                    dtm = np.concatenate([e['dtMatches'][:, 0:maxDet] for e in E], axis=1)[:, inds]
-                    dtIg = np.concatenate([e['dtIgnore'][:, 0:maxDet] for e in E], axis=1)[:, inds]
-                    gtIg = np.concatenate([e['gtIgnore'] for e in E])
+                    dtm = np.concatenate(
+                        [e["dtMatches"][:, 0:maxDet] for e in E], axis=1
+                    )[:, inds]
+                    dtIg = np.concatenate(
+                        [e["dtIgnore"][:, 0:maxDet] for e in E], axis=1
+                    )[:, inds]
+                    gtIg = np.concatenate([e["gtIgnore"] for e in E])
                     npig = np.count_nonzero(gtIg == 0)
                     if npig == 0:
                         continue
@@ -214,14 +232,14 @@ class FacetsEval(COCOeval):
 
                         # numpy is slow without cython optimization for accessing elements
                         # use python array gets significant speed improvement
-                        pr = pr.tolist();
+                        pr = pr.tolist()
                         q = q.tolist()
 
                         for i in range(nd - 1, 0, -1):
                             if pr[i] > pr[i - 1]:
                                 pr[i - 1] = pr[i]
 
-                        inds = np.searchsorted(rc, p.recThrs, side='left')
+                        inds = np.searchsorted(rc, p.recThrs, side="left")
                         try:
                             for ri, pi in enumerate(inds):
                                 q[ri] = pr[pi]
@@ -231,12 +249,12 @@ class FacetsEval(COCOeval):
                         precision[t, :, k, a, m] = np.array(q)
                         scores[t, :, k, a, m] = np.array(ss)
         self.eval = {
-            'params': p,
-            'counts': [T, R, K, A, M],
-            'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'precision': precision,
-            'recall': recall,
-            'scores': scores,
+            "params": p,
+            "counts": [T, R, K, A, M],
+            "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "precision": precision,
+            "recall": recall,
+            "scores": scores,
         }
         toc = time.time()
         # print('DONE (t={:0.2f}s).'.format(toc - tic))
@@ -248,6 +266,17 @@ class FacetsEval(COCOeval):
 @DATASETS.register_module
 class FacetsDataset(CocoDataset):
     CLASSES = "facet"
+
+    def __init__(self, dsm_prefix=None, *args, **kwargs):
+        super(FacetsDataset, self).__init__(*args, **kwargs)
+
+        self.dsm_prefix = dsm_prefix
+        if not (self.dsm_prefix is None or osp.isabs(self.dsm_prefix)):
+            self.dsm_prefix = osp.join(self.data_root, self.dsm_prefix)
+
+    def pre_pipeline(self, results):
+        super().pre_pipeline(results)
+        results["dsm_prefix"] = self.dsm_prefix
 
     def evaluate(
         self,
@@ -358,7 +387,7 @@ class FacetsDataset(CocoDataset):
             im_eval = cocoEval.eval
             ious = cocoEval.ious
 
-        other_res = {'stats': vls, 'imgs':imgs, 'ious':ious}
+        other_res = {"stats": vls, "imgs": imgs, "ious": ious}
 
         if tmp_dir is not None:
             tmp_dir.cleanup()

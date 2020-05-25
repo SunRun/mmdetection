@@ -35,6 +35,41 @@ class LoadImageFromFile(object):
             mean=np.zeros(num_channels, dtype=np.float32),
             std=np.ones(num_channels, dtype=np.float32),
             to_rgb=False)
+
+
+@PIPELINES.register_module
+class LoadRGBDFromFiles(object):
+    def __init__(self, to_float32=False, color_type="unchanged"):
+        self.to_float32 = to_float32
+        self.color_type = color_type
+
+    def __call__(self, results):
+        if results["img_prefix"] is not None:
+            filename = osp.join(results["img_prefix"], results["img_info"]["filename"])
+        else:
+            filename = results["img_info"]["filename"]
+        if results["dsm_prefix"] is not None:
+            dsm_filename = osp.join(
+                results["dsm_prefix"], results["img_info"]["filename"]
+            )
+        else:
+            dsm_filename = results["img_info"]["filename"]
+
+        img = mmcv.imread(filename, self.color_type)
+        dsm = mmcv.imread(dsm_filename, self.color_type)
+        img = np.concatenate((img, np.expand_dims(dsm, axis=2)), axis=2)
+
+        if self.to_float32:
+            img = img.astype(np.float32)
+
+        results["filename"] = filename
+        results["img"] = img
+        results["img_shape"] = img.shape
+        results["ori_shape"] = img.shape
+        # Set initial values for default meta_keys
+        results["pad_shape"] = img.shape
+        results["scale_factor"] = 1.0
+
         return results
 
     def __repr__(self):

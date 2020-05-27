@@ -1,5 +1,5 @@
 from .coco import CocoDataset
-from .registry import DATASETS
+from .builder import DATASETS
 
 import os.path as osp
 from pycocotools.cocoeval import COCOeval
@@ -263,7 +263,7 @@ class FacetsEval(COCOeval):
         self.summarize()
 
 
-@DATASETS.register_module
+@DATASETS.register_module()
 class FacetsDataset(CocoDataset):
     CLASSES = "facet"
 

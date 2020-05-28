@@ -52,7 +52,7 @@ class EvalHook(Hook):
             self.checkpoint(runner, eval_res)
 
     def evaluate(self, runner, results):
-        eval_res = self.dataloader.dataset.evaluate(
+        eval_res, _ = self.dataloader.dataset.evaluate(
             results, logger=runner.logger, **self.eval_kwargs
         )
         for name, val in eval_res.items():
@@ -106,6 +106,7 @@ class DistEvalHook(EvalHook):
                     type(dataloader)
                 )
             )
+
         self.dataloader = dataloader
         self.interval = interval
         self.gpu_collect = gpu_collect

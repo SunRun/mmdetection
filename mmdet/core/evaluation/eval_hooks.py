@@ -38,7 +38,7 @@ class EvalHook(Hook):
         self.checkpoint_metrics = checkpoint_metrics
         self.out_dir = out_dir
         # best_metric_value_epoch
-        self.filename_tmpl = "best_{}_{}_{{}}"
+        self.filename_tmpl = "best_{}_{}_{{}}.pth"
         self.eval_kwargs = eval_kwargs
 
     def after_train_epoch(self, runner):

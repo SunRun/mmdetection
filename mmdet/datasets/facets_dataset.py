@@ -4,9 +4,11 @@ from .builder import DATASETS
 import os.path as osp
 from pycocotools.cocoeval import COCOeval
 import logging
+import itertools
 import numpy as np
 import time, datetime
 import copy
+from terminaltables import AsciiTable
 
 
 class FacetsEval(COCOeval):
@@ -312,14 +314,14 @@ class FacetsDataset(CocoDataset):
         allowed_metrics = ["bbox", "segm", "proposal", "proposal_fast"]
         for metric in metrics:
             if metric not in allowed_metrics:
-                raise KeyError("metric {} is not supported".format(metric))
+                raise KeyError(f"metric {metric} is not supported")
 
         result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
 
         eval_results = {}
         cocoGt = self.coco
         for metric in metrics:
-            msg = "Evaluating {}...".format(metric)
+            msg = f"Evaluating {metric}..."
             if logger is None:
                 msg = "\n" + msg
             # print_log(msg, logger=logger)
@@ -330,14 +332,14 @@ class FacetsDataset(CocoDataset):
                 )
                 log_msg = []
                 for i, num in enumerate(proposal_nums):
-                    eval_results["AR@{}".format(num)] = ar[i]
-                    log_msg.append("\nAR@{}\t{:.4f}".format(num, ar[i]))
+                    eval_results[f"AR@{num}"] = ar[i]
+                    log_msg.append(f"\nAR@{num}\t{ar[i]:.4f}")
                 log_msg = "".join(log_msg)
                 # print_log(log_msg, logger=logger)
                 continue
 
             if metric not in result_files:
-                raise KeyError("{} is not in results".format(metric))
+                raise KeyError(f"{metric} is not in results")
             try:
                 cocoDt = cocoGt.loadRes(result_files[metric])
             except IndexError:
@@ -348,7 +350,8 @@ class FacetsDataset(CocoDataset):
                 break
 
             iou_type = "bbox" if metric == "proposal" else metric
-            cocoEval = FacetsEval(cocoGt, cocoDt, iou_type)  # COCOeval -> FacetsEval
+            cocoEval = COCOeval(cocoGt, cocoDt, iou_type)
+            cocoEval.params.catIds = self.cat_ids
             cocoEval.params.imgIds = self.img_ids
             if metric == "proposal":
                 cocoEval.params.useCats = 0
@@ -365,29 +368,59 @@ class FacetsDataset(CocoDataset):
                     "AR_l@1000",
                 ]
                 for i, item in enumerate(metric_items):
-                    val = float("{:.3f}".format(cocoEval.stats[i + 6]))
+                    val = float(f"{cocoEval.stats[i + 6]:.3f}")
                     eval_results[item] = val
             else:
                 cocoEval.evaluate()
                 cocoEval.accumulate()
                 cocoEval.summarize()
                 if classwise:  # Compute per-category AP
-                    pass  # TODO
+                    # Compute per-category AP
+                    # from https://github.com/facebookresearch/detectron2/
+                    precisions = cocoEval.eval["precision"]
+                    # precision: (iou, recall, cls, area range, max dets)
+                    assert len(self.cat_ids) == precisions.shape[2]
+
+                    results_per_category = []
+                    for idx, catId in enumerate(self.cat_ids):
+                        # area range index 0: all area ranges
+                        # max dets index -1: typically 100 per image
+                        nm = self.coco.loadCats(catId)[0]
+                        precision = precisions[:, :, idx, 0, -1]
+                        precision = precision[precision > -1]
+                        if precision.size:
+                            ap = np.mean(precision)
+                        else:
+                            ap = float("nan")
+                        results_per_category.append(
+                            (f'{nm["name"]}', f"{float(ap):0.3f}")
+                        )
+
+                    num_columns = min(6, len(results_per_category) * 2)
+                    results_flatten = list(itertools.chain(*results_per_category))
+                    headers = ["category", "AP"] * (num_columns // 2)
+                    results_2d = itertools.zip_longest(
+                        *[results_flatten[i::num_columns] for i in range(num_columns)]
+                    )
+                    table_data = [headers]
+                    table_data += [result for result in results_2d]
+                    table = AsciiTable(table_data)
+
                 metric_items = ["mAP", "mAP_50", "mAP_75", "mAP_s", "mAP_m", "mAP_l"]
                 for i in range(len(metric_items)):
-                    key = "{}_{}".format(metric, metric_items[i])
-                    val = float("{:.3f}".format(cocoEval.stats[i]))
+                    key = f"{metric}_{metric_items[i]}"
+                    val = float(f"{cocoEval.stats[i]:.3f}")
                     eval_results[key] = val
-                eval_results["{}_mAP_copypaste".format(metric)] = (
-                    "{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} "
-                    "{ap[4]:.3f} {ap[5]:.3f}"
-                ).format(ap=cocoEval.stats[:6])
-            vls = cocoEval.values
-            imgs = cocoEval.evalImgs
-            im_eval = cocoEval.eval
-            ious = cocoEval.ious
+                ap = cocoEval.stats[:6]
+                eval_results[f"{metric}_mAP_copypaste"] = (
+                    f"{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} "
+                    f"{ap[4]:.3f} {ap[5]:.3f}"
+                )
 
-        other_res = {"stats": vls, "imgs": imgs, "ious": ious}
+                imgs = cocoEval.evalImgs
+                ious = cocoEval.ious
+
+        other_res = {"imgs": imgs, "ious": ious}
 
         if tmp_dir is not None:
             tmp_dir.cleanup()

@@ -1,3 +1,7 @@
+# FIXME: truly awful... only until we have a better fix
+# add the path to the dependencies in the EFS to the python path
+import sys
+sys.path.append('/mnt/deep-site-modeling/build/venv/lib/python3.7/site-packages')
 from mmcv.utils import Registry, build_from_cfg
 from torch import nn
 
